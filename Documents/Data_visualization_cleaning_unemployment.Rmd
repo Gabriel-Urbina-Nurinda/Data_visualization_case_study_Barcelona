@@ -1,0 +1,230 @@
+---
+title: 'Data cleaning: Unemployment'
+author: "Gabriel Urbina"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# Setup: ----
+
+# path to files: ----
+
+# path to data
+data <- "/media/gabriel/GABOMOVIL/AGUN_personal_projects/Data_visualization_case_study_Barcelona/Data/"
+
+# path to documents
+
+documents <- "/media/gabriel/GABOMOVIL/AGUN_personal_projects/Data_visualization_case_study_Barcelona/Documents/"
+
+# path to graphs
+
+graphs <- "/media/gabriel/GABOMOVIL/AGUN_personal_projects/Data_visualization_case_study_Barcelona/Outcomes/Graphs/"
+
+# path to tables
+
+tables <- "/media/gabriel/GABOMOVIL/AGUN_personal_projects/Data_visualization_case_study_Barcelona/Outcomes/Tables/"
+
+# knitr setup: ----
+knitr::opts_chunk$set(
+  dpi = 400,
+  results = "asis",
+  message= F,
+  warning = F,
+  echo = TRUE)
+
+# load packages: ----
+pacman::p_load(
+  "data.table",
+  "tidyverse",
+  "kable",
+  "kableExtra",
+  "psych",
+  "readr",
+  "lubridate",
+  "hms"
+)
+
+
+```
+
+<!-- Data exploration --->
+# What do I have in the data set "unemployment"? {-}
+
+First, I loaded the data set. Then I explored each variable and drew a first road map of the next steps. First,  I renamed some variables because their names are formed by two words separated by blank space. I replaced the blank space by "_". The data set contains data from 2013 to 2017. We want only 2017, so I kept only data for year equal to 2017. "NA" values were present and coded as "No consta". I renamed "No consta" to "NA" values. The data contained number of unemployed people per gender. I created a unique value per district-neighborhood-month. In consequence, I removed gender. As last step, I kept only the variables of interest. The last step consists on detecting duplicated cases. The result showed that there were no duplicated cases. 
+
+From the 888 observation, only 870 has no one NA on any of its rows. There are 18 cases for which district code, district name, neighborhood code & neighborhood name are all NA. Therefore, I removed the rows with NA. 
+
+```{r}
+
+# load data set: unemployment ----
+
+unemployment <- fread(paste0(data, "unemployment.csv"))
+
+# get variable names: 
+
+names(unemployment)
+
+# modify variables names: ----
+
+colnames(unemployment) <- 
+  gsub(" ", 
+       "_",
+       colnames(unemployment))
+
+# get a summary of the data set: ----
+
+summary(unemployment)
+
+# keep only data for 2017: ----
+
+unemployment.2017 <- 
+  unemployment[Year == "2017"]
+
+# View the data set: ---- 
+
+View(unemployment.2017)
+
+# summary: unemployment 2017 ----
+
+summary(unemployment.2017)
+# set NA values: characters ----
+
+unemployment.2017 <- unemployment.2017[, 
+                  lapply(.SD, function(x) ifelse(
+                  x == "No consta", NA, x
+                  )), .SDcols = names(unemployment.2017)]
+
+# set NA values: integers ----
+
+unemployment.2017 <- unemployment.2017[,
+                    lapply(
+                          .SD,
+                          function(x) ifelse(
+                            x == 99,
+                            NA,
+                            x
+                          )), 
+                    .SDcols = names(
+                      unemployment.2017
+                    )]
+
+# create a date variable: ----
+
+unemployment.2017 <-
+  unemployment.2017[,
+               unemployment :=
+                 sum(Number),
+               by = c(
+                 "Month",
+                 "District_Name",
+                 "Neighborhood_Name"
+               )
+]
+
+# create an index variable: Month-District_Name,
+# Neighborhood_Name ----
+
+unemployment.2017 <-
+  unemployment.2017[, index := 1:.N,
+                   by= c(
+                     "Month",
+      "Neighborhood_Name")
+]
+
+# keep one observation per Month-District-Neighborhood: ----
+
+unemployment.2017 <-
+  unemployment.2017[index == 1]
+
+# keep variables of interest: ----
+
+unemployment.2017 <- unemployment.2017[,
+                  .(Year,
+                    Month,
+                    District_Code,
+                    District_Name,
+                    Neighborhood_Code,
+                    Neighborhood_Name, 
+                    unemployment)]
+
+# how many duplicated cases exist ----
+
+table(duplicated(unemployment.2017))
+
+# check duplicated neighborhood names per district ----
+table(
+  unemployment.2017$District_Name,
+  unemployment.2017$Neighborhood_Name)
+# No duplicated cases. 
+```
+
+```{r}
+# checking how many NA still remains ----
+
+table(complete.cases(unemployment.2017))
+
+# Drop NAs ----
+
+unemployment.2017 <- na.omit(unemployment.2017)
+
+
+```
+
+
+# Visualization
+
+There is no visible trend in the data. The median value is similar
+during the year. However, there is visible difference in the dispercion 
+of the data. 
+```{r}
+# add level for the month variable
+level <- c(
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December"
+)
+
+# parse Month into factor: ----
+unemployment.2017 <-
+  unemployment.2017[, 
+                    Month := parse_factor(Month, levels = 
+                                            level)]
+
+# boxplot unemployment per month ----
+plot((unemployment.2017$Month), unemployment.2017$unemployment)
+```
+
+In general, there are neighborhood with persistent unemployment. 
+
+```{r}
+unemployment.2017 %>% 
+  ggplot(aes(as.factor(unemployment.2017$Neighborhood_Name),
+     unemployment.2017$unemployment)
+     ) +
+  geom_point() +
+  facet_wrap(vars(Month))
+
+# unemployment: violin
+
+unemployment.2017 %>%
+  ggplot(
+    aes(unemployment.2017$Month,
+        unemployment.2017$unemployment)
+  ) +
+  geom_violin()
+```
+
+
+
+
+
