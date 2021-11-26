@@ -1,0 +1,73 @@
+---
+title: 'Cleaning data set: air quality'
+author: "Gabriel Urbina"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# setup knitr: ----
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = F,
+  warning = F)
+
+# setup path: ----
+
+data <- "/media/gabriel/GABOMOVIL/AGUN_personal_projects/Data_visualization_case_study_Barcelona/Data/"
+
+# path to documents
+
+documents <- "/media/gabriel/GABOMOVIL/AGUN_personal_projects/Data_visualization_case_study_Barcelona/Documents/"
+
+# path to graphs
+
+graphs <- "/media/gabriel/GABOMOVIL/AGUN_personal_projects/Data_visualization_case_study_Barcelona/Outcomes/Graphs/"
+
+# path to tables
+
+tables <- "/media/gabriel/GABOMOVIL/AGUN_personal_projects/Data_visualization_case_study_Barcelona/Outcomes/Tables/"
+# load packages: ----
+
+pacman::p_load(
+  "tidyverse",
+  "data.table",
+  "hms",
+  "psych",
+  "kable",
+  "kableExtra",
+  "lubridate"
+)
+
+# load data set: ----
+
+air_quality <-fread(
+    paste0( # paste data file path
+      data, 
+      "air_quality_Nov2017.csv"))
+```
+
+There are many NA values. The data set contains only data for November 2017. Generated is a column containing the date-time. The values indicate that the data set was recorded in November 2018, not 2017. I formatted the column "Date Time" to double check the previous observation. The results indicated that, indeed, the data set has data for November 2018, not November 2017. 
+```{r}
+# View data set
+
+View(air_quality)
+
+# summary: ----
+
+summary(air_quality)
+
+# format the column "Date Time": ----
+
+air_quality[, 
+            Date_time := 
+              as_datetime(`Date Time`)]
+
+# table air_quality: ---
+
+table(as.factor(air_quality$`Air Quality`))
+
+summary(air_quality)
+
+```
+
