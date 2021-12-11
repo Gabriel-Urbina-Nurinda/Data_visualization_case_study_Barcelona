@@ -81,10 +81,6 @@ summary(unemployment)
 unemployment.2017 <- 
   unemployment[Year == "2017"]
 
-# View the data set: ---- 
-
-View(unemployment.2017)
-
 # summary: unemployment 2017 ----
 
 summary(unemployment.2017)
@@ -109,18 +105,56 @@ unemployment.2017 <- unemployment.2017[,
                       unemployment.2017
                     )]
 
-# create a date variable: ----
+# create the total unemployment column: ----
+# at neighborhood frequency
 
 unemployment.2017 <-
   unemployment.2017[,
                unemployment :=
-                 sum(Number),
-               by = c(
-                 "Month",
+                 sum(Number, 
+                     na.rm = TRUE),
+               by = c(               
                  "District_Name",
                  "Neighborhood_Name"
                )
 ]
+
+# generate unemployment by sex: ----
+
+unemployment.2017 <-
+  unemployment.2017[,
+   c("female_unemployment",
+     "male_unemployment"):=
+     .(max(ifelse(
+       Gender == "Female",
+       sum(Number,
+         na.rm = TRUE),
+       0)),
+       max(ifelse(
+         Gender == "Male",
+         sum(Number,
+           na.rm = TRUE),
+         0))),
+   by = c(
+     "District_Name",
+     "Neighborhood_Name",
+     "Gender"
+   )
+  ]
+
+# replace zeros by the maximum value per neighborhood: ----
+# values per sex are side by side
+
+unemployment.2017 <-
+  unemployment.2017[,
+   c("female_unemployment",
+     "male_unemployment"):=
+     .(max(female_unemployment),
+       max(male_unemployment)),
+   by =c(
+     "District_Name",
+     "Neighborhood_Name"
+   )]
 
 # create an index variable: Month-District_Name,
 # Neighborhood_Name ----
@@ -128,8 +162,8 @@ unemployment.2017 <-
 unemployment.2017 <-
   unemployment.2017[, index := 1:.N,
                    by= c(
-                     "Month",
-      "Neighborhood_Name")
+# at neighboorhood level
+      "Neighborhood_Code")
 ]
 
 # keep one observation per Month-District-Neighborhood: ----
@@ -140,13 +174,13 @@ unemployment.2017 <-
 # keep variables of interest: ----
 
 unemployment.2017 <- unemployment.2017[,
-                  .(Year,
-                    Month,
-                    District_Code,
+                  .(District_Code,
                     District_Name,
                     Neighborhood_Code,
                     Neighborhood_Name, 
-                    unemployment)]
+                    unemployment,
+                    female_unemployment,
+                    male_unemployment)]
 
 # how many duplicated cases exist ----
 
@@ -177,7 +211,7 @@ unemployment.2017 <- na.omit(unemployment.2017)
 There is no visible trend in the data. The median value is similar
 during the year. However, there is visible difference in the dispercion 
 of the data. 
-```{r}
+```{r, eval=F,include=FALSE}
 # add level for the month variable
 level <- c(
   "January",
@@ -211,17 +245,9 @@ unemployment.2017 %>%
   ggplot(aes(as.factor(unemployment.2017$Neighborhood_Name),
      unemployment.2017$unemployment)
      ) +
-  geom_point() +
-  facet_wrap(vars(Month))
+  geom_point() 
 
-# unemployment: violin
 
-unemployment.2017 %>%
-  ggplot(
-    aes(unemployment.2017$Month,
-        unemployment.2017$unemployment)
-  ) +
-  geom_violin()
 ```
 
 
